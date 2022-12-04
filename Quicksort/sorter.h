@@ -14,21 +14,25 @@ template<typename Value>
 class thread_safe_stack
 {
 private:
-	std::stack<Value> data;
+	std::stack<std::shared_ptr<Value>> data;
 	mutable std::mutex mutex;
 
 public:
-	template<typename Value>
-	void push(Value&& value)
+	void push(std::shared_ptr<Value> value)
 	{
 		std::lock_guard<std::mutex> g(mutex);
-		//auto pvalue = std::make_shared<Value>(value);
-		data.push(value);
+		data.push(std::move(value));
 	}
 
-	Value pop()
+	std::shared_ptr<Value> pop()
 	{
 		std::lock_guard<std::mutex> g(mutex);
+
+		if (data.empty())
+		{
+			return std::make_shared<Value>();
+		}
+
 		auto value = data.top();
 		data.pop();
 
@@ -51,7 +55,7 @@ struct sorter
 		std::promise<decltype(data)> promise;
 	};
 
-	thread_safe_stack<std::shared_ptr<chunk_to_sort>> chunks;
+	thread_safe_stack<chunk_to_sort> chunks;
 	std::vector<std::thread> threads;
 	const unsigned max_thread_count;
 	std::atomic<bool> end_of_data;
